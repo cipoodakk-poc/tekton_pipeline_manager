@@ -33,8 +33,24 @@ echo "[1/2] Installing system RPM packages from rocky${ROCKY_VER}/ ..."
 if [ -d "$RPM_DIR" ] && [ "$(find "$RPM_DIR" -maxdepth 1 -name '*.rpm' 2>/dev/null | head -1)" ]; then
     echo "      Path: $RPM_DIR"
     if [ "$ROCKY_VER" = "8" ]; then
+        if [ -n "$DNF" ]; then
+            if [ "$(basename "$DNF")" = "dnf5" ]; then
+                "$DNF" install -y --disablerepo='*' "$RPM_DIR"/*.rpm 2>/dev/null || true
+            else
+                "$DNF" localinstall -y --disablerepo='*' "$RPM_DIR"/*.rpm 2>/dev/null || true
+            fi
+        fi
+
         PY_RPMS=()
         for PATTERN in \
+            "git-[0-9]*.rpm" \
+            "git-core-[0-9]*.rpm" \
+            "perl-Git-*.rpm" \
+            "perl-Error-*.rpm" \
+            "perl-TermReadKey-*.rpm" \
+            "expat-*.rpm" \
+            "libcurl-[0-9]*.rpm" \
+            "pcre2-*.rpm" \
             "platform-python-*.rpm" \
             "platform-python-setuptools-*.rpm" \
             "platform-python-pip-*.rpm" \
@@ -157,6 +173,7 @@ fi
 
 "$PYTHON" -m pip install \
     --no-index \
+    --ignore-installed \
     --find-links "$PY_PKG_DIR" \
     -r "$REQ_FILE"
 
