@@ -124,6 +124,8 @@ PY_MAJOR=""
 PY_MINOR=""
 if [ "$ROCKY_VER" = "8" ]; then
     PYTHON_CANDIDATES="/usr/libexec/platform-python python3 python3.6 python36 python3.12 python3.11 python3.10 python3.9 python39 python3.8 python38"
+elif [ "$ROCKY_VER" = "9" ]; then
+    PYTHON_CANDIDATES="python3.9 python39 python3 python3.8 python38 python3.10 python3.11 python3.12 python3.6 python36"
 else
     PYTHON_CANDIDATES="python3.12 python3.11 python3.10 python3.9 python39 python3.8 python38 python3.6 python36 python3"
 fi
@@ -133,7 +135,7 @@ for CANDIDATE in $PYTHON_CANDIDATES; do
         VERSION=$("$CANDIDATE" -c 'import sys; print("%s.%s" % (sys.version_info[0], sys.version_info[1]))' 2>/dev/null || true)
         PY_MAJOR=${VERSION%%.*}
         PY_MINOR=${VERSION#*.}
-        if [ "$PY_MAJOR" = "3" ] && [ "$PY_MINOR" -ge 6 ]; then
+        if [ "$PY_MAJOR" = "3" ] && [ "$PY_MINOR" -ge 6 ] && "$CANDIDATE" -m pip --version >/dev/null 2>&1; then
             PYTHON="$CANDIDATE"
             break
         fi
@@ -141,12 +143,7 @@ for CANDIDATE in $PYTHON_CANDIDATES; do
 done
 
 if [ -z "$PYTHON" ]; then
-    echo "[ERROR] Python 3.6 or newer is required."
-    exit 1
-fi
-
-if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
-    echo "[ERROR] pip is not available for $PYTHON."
+    echo "[ERROR] Python 3.6 or newer with pip is required."
     exit 1
 fi
 
