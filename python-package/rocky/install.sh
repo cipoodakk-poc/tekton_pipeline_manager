@@ -32,20 +32,47 @@ echo ""
 echo "[1/2] Installing system RPM packages from rocky${ROCKY_VER}/ ..."
 if [ -d "$RPM_DIR" ] && [ "$(find "$RPM_DIR" -maxdepth 1 -name '*.rpm' 2>/dev/null | head -1)" ]; then
     echo "      Path: $RPM_DIR"
-    if [ -n "$DNF" ]; then
+    if [ "$ROCKY_VER" = "8" ]; then
+        PY_RPMS=()
+        for PATTERN in \
+            "platform-python-*.rpm" \
+            "platform-python-setuptools-*.rpm" \
+            "platform-python-pip-*.rpm" \
+            "python3-libs-3.6*.rpm" \
+            "python3-pip-9*.rpm" \
+            "python3-pip-wheel-9*.rpm" \
+            "python3-setuptools-wheel-39*.rpm" \
+            "libffi-*.rpm" \
+            "openssl-libs-*.rpm" \
+            "readline-*.rpm" \
+            "sqlite-libs-*.rpm" \
+            "bzip2-libs-*.rpm" \
+            "xz-libs-*.rpm" \
+            "zlib-*.rpm" \
+            "gdbm-libs-*.rpm" \
+            "ncurses-libs-*.rpm"; do
+            for RPM in "$RPM_DIR"/$PATTERN; do
+                [ -e "$RPM" ] && PY_RPMS+=("$RPM")
+            done
+        done
+
+        if [ "${#PY_RPMS[@]}" -gt 0 ]; then
+            rpm -Uvh --replacepkgs --nodeps "${PY_RPMS[@]}"
+        fi
+    elif [ -n "$DNF" ]; then
         if [ "$(basename "$DNF")" = "dnf5" ]; then
             "$DNF" install -y --disablerepo='*' "$RPM_DIR"/*.rpm 2>/dev/null || \
-            rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm 2>/dev/null || true
+            rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm
         else
             "$DNF" localinstall -y --disablerepo='*' "$RPM_DIR"/*.rpm 2>/dev/null || \
-            rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm 2>/dev/null || true
+            rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm
         fi
     else
-        rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm 2>/dev/null || true
+        rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm
     fi
 
     echo "      git: $(git --version 2>/dev/null || echo 'not found')"
-    echo "      python: $(python3 --version 2>/dev/null || python3.9 --version 2>/dev/null || echo 'not found')"
+    echo "      python: $(python3 --version 2>/dev/null || /usr/libexec/platform-python --version 2>/dev/null || python3.9 --version 2>/dev/null || echo 'not found')"
 else
     echo "      [WARN] $RPM_DIR is missing or empty. Skipping system RPM installation."
     echo "             Ensure git, python3, and python3-pip are already installed."
@@ -57,7 +84,7 @@ PYTHON=""
 PY_MAJOR=""
 PY_MINOR=""
 if [ "$ROCKY_VER" = "8" ]; then
-    PYTHON_CANDIDATES="python3 python3.6 python36 python3.12 python3.11 python3.10 python3.9 python39 python3.8 python38"
+    PYTHON_CANDIDATES="/usr/libexec/platform-python python3 python3.6 python36 python3.12 python3.11 python3.10 python3.9 python39 python3.8 python38"
 else
     PYTHON_CANDIDATES="python3.12 python3.11 python3.10 python3.9 python39 python3.8 python38 python3.6 python36 python3"
 fi
