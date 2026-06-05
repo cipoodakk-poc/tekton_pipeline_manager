@@ -32,12 +32,35 @@ echo ""
 echo "[1/2] Installing system RPM packages from rocky${ROCKY_VER}/ ..."
 if [ -d "$RPM_DIR" ] && [ "$(find "$RPM_DIR" -maxdepth 1 -name '*.rpm' 2>/dev/null | head -1)" ]; then
     echo "      Path: $RPM_DIR"
+    RPM_FILES=()
+    HAS_LIBCURL_RPM=0
+    if [ "$(find "$RPM_DIR" -maxdepth 1 -name 'libcurl-[0-9]*.rpm' 2>/dev/null | head -1)" ]; then
+        HAS_LIBCURL_RPM=1
+    fi
+    for RPM in "$RPM_DIR"/*.rpm; do
+        [ -e "$RPM" ] || continue
+        RPM_NAME="$(basename "$RPM")"
+        case "$RPM_NAME" in
+            fips-provider-next-*.rpm|openssl-fips-provider-*.rpm)
+                echo "      [SKIP] $RPM_NAME (conflicts with another FIPS provider)"
+                continue
+                ;;
+            libcurl-minimal-*.rpm)
+                if [ "$HAS_LIBCURL_RPM" -eq 1 ]; then
+                    echo "      [SKIP] $RPM_NAME (libcurl RPM is bundled)"
+                    continue
+                fi
+                ;;
+        esac
+        RPM_FILES+=("$RPM")
+    done
+
     if [ "$ROCKY_VER" = "8" ]; then
         if [ -n "$DNF" ]; then
             if [ "$(basename "$DNF")" = "dnf5" ]; then
-                "$DNF" install -y --disablerepo='*' "$RPM_DIR"/*.rpm 2>/dev/null || true
+                "$DNF" install -y --disablerepo='*' "${RPM_FILES[@]}" 2>/dev/null || true
             else
-                "$DNF" localinstall -y --disablerepo='*' "$RPM_DIR"/*.rpm 2>/dev/null || true
+                "$DNF" localinstall -y --disablerepo='*' "${RPM_FILES[@]}" 2>/dev/null || true
             fi
         fi
 
@@ -77,14 +100,14 @@ if [ -d "$RPM_DIR" ] && [ "$(find "$RPM_DIR" -maxdepth 1 -name '*.rpm' 2>/dev/nu
         fi
     elif [ -n "$DNF" ]; then
         if [ "$(basename "$DNF")" = "dnf5" ]; then
-            "$DNF" install -y --disablerepo='*' "$RPM_DIR"/*.rpm 2>/dev/null || \
-            rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm
+            "$DNF" install -y --disablerepo='*' "${RPM_FILES[@]}" 2>/dev/null || \
+            rpm -Uvh --replacepkgs --nodeps "${RPM_FILES[@]}"
         else
-            "$DNF" localinstall -y --disablerepo='*' "$RPM_DIR"/*.rpm 2>/dev/null || \
-            rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm
+            "$DNF" localinstall -y --disablerepo='*' "${RPM_FILES[@]}" 2>/dev/null || \
+            rpm -Uvh --replacepkgs --nodeps "${RPM_FILES[@]}"
         fi
     else
-        rpm -Uvh --replacepkgs --nodeps "$RPM_DIR"/*.rpm
+        rpm -Uvh --replacepkgs --nodeps "${RPM_FILES[@]}"
     fi
 
     echo "      git: $(git --version 2>/dev/null || echo 'not found')"
